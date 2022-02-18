@@ -1,0 +1,170 @@
+ #######################################################################################################										                          #
+#	                       Simple bidirectional plasticity model.                             #	   
+#              	        Thiago Matos Pinto (version January 10th 2019 9:21pm)                     #
+#												      #
+######################################################################################################
+
+
+######################################################################################################
+#											             #
+#				    PARAMETERS OF THE REACTIONS				     #
+#											             #
+######################################################################################################
+
+parameters kib=10 kbi=0.2
+parameters kpa=0.004 kap=10
+parameters cb=0.75 cp=1 cau=0.8
+parameters a=0.500 b=1.956 c=-1.800
+parameters ka1=0.29
+parameters beta=4000
+
+parameters kf65=2E3 kb65=2.3E6
+parameters kppia=0.15 kppai=0.00042
+
+parameters kf45=0.5 kb45=72.283 kcat45=6
+parameters kf46=0.5 kb46=72.283 kcat46=6
+parameters kdeph=0.0005
+
+parameters kiacbac=10 kbaciac=1
+parameters kiiac=10 kiaci=30.1
+parameters kbbac=10 kbacb=150.5
+parameters kpacaac=0.02 kaacpac=10
+parameters kppac=10 kpacp=1505
+parameters kaaac=10 kaaca=301
+
+#F-actin rate constants are 0 when simulating betaCaMKII knockout
+#parameters kiacbac=0 kbaciac=0
+#parameters kiiac=0 kiaci=0
+#parameters kbbac=0 kbacb=0
+#parameters kpacaac=0 kaacpac=0
+#parameters kppac=0 kpacp=0
+#parameters kaaac=0 kaaca=0
+
+
+######################################################################################################
+#												     #
+#	    		     	             Ca2+ INPUTS    		                 	     #
+#												     #
+######################################################################################################
+
+table f Ca2+PFCF_Pinto.tab 
+#table f Ca2+PF_Pinto.tab 
+
+alpha=f(t)
+
+######################################################################################################
+#												     #
+#	         	  Ca4CaM PATHWAY - ORDINARY DIFFERENTIAL EQUATIONS                           #
+#												     #
+######################################################################################################
+
+dCa/dt=(-4*kf65*Ca^4*CaM+4*kb65*Ca4CaM)+(alpha-beta*(Ca-Ca_min))
+
+dCaM/dt=(-kf65*Ca^4*CaM+kb65*Ca4CaM)
+
+dCa4CaM/dt=(kf65*Ca^4*CaM-kb65*Ca4CaM)+(-kppia*PPi*Ca4CaM+kppai*PPa)+\
+(-kib*Wi*Ca4CaM+kbi*Wb)+(kpa*Wp-kap*Wa*Ca4CaM)+(-kiacbac*Wiac*Ca4CaM+kbaciac*Wbac)+\
+(kpacaac*Wpac-kaacpac*Waac*Ca4CaM)
+
+######################################################################################################
+#												     #
+#			  CaMKII PATHWAY - ORDINARY DIFFERENTIAL EQUATIONS                           #
+#												     #
+######################################################################################################
+
+Wi=Wtot-Wb-Wp-Wa-Wiac-Wbac-Wpac-Waac
+
+dWb/dt=-Va*Wtot+(kib*Wi*Ca4CaM-kbi*Wb)+(-kf45*Wb*AMPAR+(kb45+kcat45)*WbAMPAR)+\
+(-kbbac*Wb*Fact+kbacb*Wbac)
+
+dWp/dt=Va*Wtot+(-kpa*Wp+kap*Wa*Ca4CaM)+(-kf45*Wp*AMPAR+(kb45+kcat45)*WpAMPAR)+\
+(-kppac*Wp*Fact+kpacp*Wpac)
+
+dWa/dt=(kpa*Wp-kap*Wa*Ca4CaM)+(-kf45*Wa*AMPAR+(kb45+kcat45)*WaAMPAR)+(-kaaac*Wa*Fact+kaaca*Waac)+(-kdeph*Wa)
+
+Va=(ka*((cb*Wb)^2+(cb*Wb)*(cp*Wp)+(cb*Wb)*(cau*Wa)))/Wtot^2
+
+Tot=(Wb+Wp+Wa)/Wtot
+
+ka=ka1*((a*Tot)+(b*Tot^2)+(c*Tot^3))
+
+Wac=Wb+Wp+Wa
+
+dWiac/dt=(kiiac*Wi*Fact-kiaci*Wiac)+(-kiacbac*Wiac*Ca4CaM+kbaciac*Wbac)
+
+dWbac/dt=-Vac*Wtot+(kiacbac*Wiac*Ca4CaM-kbaciac*Wbac)+(kbbac*Wb*Fact-kbacb*Wbac)
+
+dWpac/dt=Vac*Wtot+(-kpacaac*Wpac+kaacpac*Waac*Ca4CaM)+(kppac*Wp*Fact-kpacp*Wpac)
+
+dWaac/dt=(kpacaac*Wpac-kaacpac*Waac*Ca4CaM)+(kaaac*Wa*Fact-kaaca*Waac)
+
+Vac=(kac*((cb*Wbac)^2+(cb*Wbac)*(cp*Wpac)+(cb*Wbac)*(cau*Waac)))/Wtot^2
+
+Totac=(Wbac+Wpac+Waac)/Wtot
+
+kac=ka1*((a*Totac)+(b*Totac^2)+(c*Totac^3))
+
+Wactin=Wiac+Wbac+Wpac+Waac
+
+######################################################################################################
+#												     #
+#			    PPi PATHWAY - ORDINARY DIFFERENTIAL EQUATIONS                            #
+#												     #
+######################################################################################################
+
+dPPi/dt=(-kppia*PPi*Ca4CaM+kppai*PPa)
+
+dPPa/dt=(kppia*PPi*Ca4CaM-kppai*PPa)+(-kf46*PPa*AMPAR_P+(kb46+kcat46)*PPaAMPARP)
+
+######################################################################################################
+#												     #
+#			   AMPAR PATHWAY - ORDINARY DIFFERENTIAL EQUATIONS                           #
+#												     #
+######################################################################################################
+
+dAMPAR/dt=(-kf45*Wb*AMPAR+kb45*WbAMPAR)+(-kf45*Wp*AMPAR+kb45*WpAMPAR)+\
+(-kf45*Wa*AMPAR+kb45*WaAMPAR)+(kcat46*PPaAMPARP)
+
+dWbAMPAR/dt=(kf45*Wb*AMPAR-(kb45+kcat45)*WbAMPAR)
+
+dWpAMPAR/dt=(kf45*Wp*AMPAR-(kb45+kcat45)*WpAMPAR)
+
+dWaAMPAR/dt=(kf45*Wa*AMPAR-(kb45+kcat45)*WaAMPAR)
+
+dAMPAR_P/dt=(kcat45*WbAMPAR)+(kcat45*WpAMPAR)+(kcat45*WaAMPAR)+\
+(-kf46*PPa*AMPAR_P+kb46*PPaAMPARP)
+
+dPPaAMPARP/dt=(kf46*PPa*AMPAR_P-(kb46+kcat46)*PPaAMPARP)
+
+######################################################################################################											           #										            	     #								
+#				      INITIAL CONCENTRATIONS					     #
+#											             #
+######################################################################################################
+
+parameters Ca_min=0.045
+parameters Wtot=26
+#parameters Wtot=13
+parameters Fact=10
+init CaM=36
+init PPi=26
+init AMPAR=0.5
+init AMPAR_P=0.5
+
+######################################################################################################
+######################################################################################################
+
+aux Ca=Ca
+aux Wi=Wi
+aux Wac=Wac
+aux PPa=PPa
+aux Wactin=Wactin
+
+######################################################################################################
+######################################################################################################
+
+@ Total=6000 dt=0.01 meth=cvode,tol=1e-10,atol=1e-10  xlo=0 xhi=300 ylo=0 yhi=0.5 maxstor=900000 \
+  bounds=100000 BACK=white
+
+done
+
+
